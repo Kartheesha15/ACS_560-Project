@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Exchange Rate Alerts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .alert-form {
+            grid-column: 1 / -1;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .button:hover {
+            background-color: #45a049;
+        }
+
+        .button.delete {
+            background-color: #f44336;
+        }
+
+        .button.delete:hover {
+            background-color: #da190b;
+        }
+
+        .alert-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .alert-item {
+            background: #f8f9fa;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .alert-item.disabled {
+            border-left-color: #999;
+            opacity: 0.7;
+        }
+
+        .notification {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .notification.unread {
+            background-color: #cce5ff;
+            border-left-color: #007bff;
+        }
+
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .status-badge.enabled {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.disabled {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .alert-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Create New Alert Form -->
+        <div class="card alert-form">
+            <h2>Create New Alert</h2>
+            <form th:action="@{/api/v1/alerts}" method="post">
+                <div class="form-group">
+                    <label for="fromCurrency">From Currency</label>
+                    <select id="fromCurrency" name="fromCurrency" required>
+                        <option th:each="currency : ${availableCurrencies}"
+                                th:value="${currency}"
+                                th:text="${currency}">USD</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="toCurrency">To Currency</label>
+                    <select id="toCurrency" name="toCurrency" required>
+                        <option th:each="currency : ${availableCurrencies}"
+                                th:value="${currency}"
+                                th:text="${currency}">EUR</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="threshold">Threshold (%)</label>
+                    <input type="number" id="threshold" name="threshold" 
+                           step="0.1" min="0.1" required>
+                </div>
+
+                <button type="submit" class="button">Create Alert</button>
+            </form>
+        </div>
+
+        <!-- Active Alerts -->
+        <div class="card">
+            <div class="alert-header">
+                <h2>Active Alerts</h2>
+                <div class="alert-controls">
+                    <button class="button" onclick="refreshAlerts()">Refresh</button>
+                </div>
+            </div>
+
+            <div th:if="${#lists.isEmpty(activeAlerts)}" class="empty-state">
+                <p>No active alerts</p>
+            </div>
+
+            <ul class="alert-list" th:unless="${#lists.isEmpty(activeAlerts)}">
+                <li th:each="alert : ${activeAlerts}" class="alert-item"
+                    th:classappend="${alert.enabled} ? '' : 'disabled'">
+                    <div class="alert-header">
+                        <span th:text="${alert.fromCurrency + ' → ' + alert.toCurrency}"></span>
+                        <span class="status-badge" 
+                              th:classappend="${alert.enabled} ? 'enabled' : 'disabled'"
+                              th:text="${alert.enabled} ? 'Enabled' : 'Disabled'"></span>
+                    </div>
+                    <div>Threshold: <span th:text="${alert.threshold + '%'}"></span></div>
+                    <div>Last Rate: <span th:text="${alert.lastRate}"></span></div>
+                    <div class="timestamp">
+                        Last checked: <span th:text="${#temporals.format(alert.lastChecked, 'dd-MM-yyyy HH:mm:ss')}"></span>
+                    </div>
+                    <div class="alert-controls">
+                        <form th:action="@{/api/v1/alerts/{id}(id=${alert.id})}" method="post" style="display: inline;">
+                            <input type="hidden" name="_method" value="PUT">
+                            <input type="hidden" name="enabled" th:value="${!alert.enabled}">
+                            <button type="submit" class="button" 
+                                    th:text="${alert.enabled ? 'Disable' : 'Enable'}">Toggle</button>
+                        </form>
+                        <form th:action="@{/api/v1/alerts/{id}(id=${alert.id})}" method="post" style="display: inline;">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button type="submit" class="button delete">Delete</button>
+                        </form>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Recent Notifications -->
+        <div class="card">
+            <h2>Recent Notifications</h2>
+            
+            <div th:if="${#lists.isEmpty(notifications)}" class="empty-state">
+                <p>No notifications</p>
+            </div>
+
+            <div th:unless="${#lists.isEmpty(notifications)}" class="notification-list">
+                <div th:each="notification : ${notifications}" 
+                     class="notification"
+                     th:classappend="${!notification.read} ? 'unread'">
+                    <div th:text="${notification.message}"></div>
+                    <div class="timestamp" 
+                         th:text="${#temporals.format(notification.timestamp, 'dd-MM-yyyy HH:mm:ss')}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function refreshAlerts() {
+            location.reload();
+        }
+
+        // Auto-refresh every 5 minutes
+        setInterval(refreshAlerts, 300000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Conversion Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .result-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        .conversion-details {
+            font-size: 1.2em;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .rate-info {
+            color: #666;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        .convert-another {
+            background-color: #4CAF50;
+        }
+        .convert-another:hover {
+            background-color: #45a049;
+        }
+        .view-history {
+            background-color: #2196F3;
+        }
+        .view-history:hover {
+            background-color: #1976D2;
+        }
+        .view-alerts {
+            background-color: #FF9800;
+        }
+        .view-alerts:hover {
+            background-color: #F57C00;
+        }
+        .amount {
+            font-weight: bold;
+        }
+        .arrow {
+            margin: 0 10px;
+            color: #666;
+        }
+        /* Add navigation bar styles */
+        .nav-bar {
+            background-color: #333;
+            padding: 10px 0;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        .nav-link:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+<body>
+    <!-- Add navigation bar -->
+    <div class="nav-bar">
+        <div class="nav-links">
+            <a href="/api/v1/converter" class="nav-link">Converter</a>
+            <a href="/api/v1/convert/history" class="nav-link">History</a>
+            <a href="/api/v1/alerts" class="nav-link">Alerts</a>
+        </div>
+    </div>
+
+    <div class="result-card">
+        <h1>Conversion Result</h1>
+        
+        <div class="conversion-details">
+            <span class="amount" th:text="${#numbers.formatDecimal(conversion.amount, 1, 2)}"></span>
+            <span th:text="${conversion.fromCurrency}"></span>
+            <span class="arrow">→</span>
+            <span class="amount" th:text="${#numbers.formatDecimal(conversion.convertedAmount, 1, 2)}"></span>
+            <span th:text="${conversion.toCurrency}"></span>
+        </div>
+        
+        <div class="rate-info">
+            <span>Exchange Rate: </span>
+            <span th:text="${#numbers.formatDecimal(conversion.rate, 1, 6)}"></span>
+        </div>
+        
+        <div class="timestamp">
+            <span>Converted on: </span>
+            <span th:text="${#temporals.format(conversion.timestamp, 'dd-MM-yyyy HH:mm:ss')}"></span>
+        </div>
+        
+        <div class="action-buttons">
+            <a href="/api/v1/converter" class="button convert-another">Convert Another</a>
+            <a href="/api/v1/convert/history" class="button view-history">View History</a>
+            <a href="/api/v1/alerts" class="button view-alerts">Rate Alerts</a>
+        </div>
+
+        <!-- Add alert creation suggestion -->
+        <div style="text-align: center; margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 4px;">
+            <p>Want to monitor this exchange rate? 
+                <a href="/api/v1/alerts" style="color: #0056b3; text-decoration: none;">
+                    Set up a rate alert
+                </a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Optional: Add Quick Alert Setup -->
+    <div class="result-card">
+        <h2>Quick Alert Setup</h2>
+        <form th:action="@{/api/v1/alerts}" method="post" style="max-width: 400px; margin: 0 auto;">
+            <input type="hidden" name="fromCurrency" th:value="${conversion.fromCurrency}">
+            <input type="hidden" name="toCurrency" th:value="${conversion.toCurrency}">
+            <div style="margin-bottom: 15px;">
+                <label for="threshold" style="display: block; margin-bottom: 5px;">
+                    Notify me when the rate changes by:
+                </label>
+                <input type="number" 
+                       id="threshold" 
+                       name="threshold" 
+                       step="0.1" 
+                       min="0.1" 
+                       value="1.0" 
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                       required>
+                <span style="font-size: 0.9em; color: #666;">% or more</span>
+            </div>
+            <button type="submit" class="button view-alerts" style="width: 100%;">
+                Create Rate Alert
+            </button>
+        </form>
+    </div>
+</body>
+</html> 
